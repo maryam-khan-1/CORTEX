@@ -115,8 +115,8 @@ class Triage:
             agreement=agreement,
         )
 
-    def stage1(self, items: list[str]) -> list[Stage1Result]:
-        return [self.classify_one(x) for x in items]
+    def stage1(self, items: list[str], n: Optional[int] = None) -> list[Stage1Result]:
+        return [self.classify_one(x, n=n) for x in items]
 
     def stage2_analyze(self, item: str, prompt_extra: str = "") -> Report:
         """Deep SecOps + RAG + harness on a single flagged item."""
@@ -126,7 +126,12 @@ class Triage:
         if self.rag is not None:
             docs = self.rag.retrieve_for_query(item, top_k=self.rag_top_k)
             retrieved_ids = [d.id for d in docs]
-            evidence = self.rag.format_evidence(docs)
+            # Keep evidence short — long RAG dumps dominate prompt eval on M1.
+            trimmed = []
+            for d in docs:
+                text = d.text if len(d.text) <= 420 else d.text[:420] + "…"
+                trimmed.append(f"[{d.id}] {text}")
+            evidence = "\n".join(trimmed)
 
         user = (
             "Perform a grounded security analysis of the following.\n"
@@ -147,8 +152,14 @@ class Triage:
             role="deep",
         )
 
-    def run(self, items: list[str], prompt_extra: str = "") -> TriageResult:
-        s1 = self.stage1(items)
+    def run(
+        self,
+        items: list[str],
+        prompt_extra: str = "",
+        *,
+        consensus_n: Optional[int] = None,
+    ) -> TriageResult:
+        s1 = self.stage1(items, n=consensus_n)
         flagged = [
             i for i, r in enumerate(s1) if r.label in {"suspicious", "critical"}
         ]

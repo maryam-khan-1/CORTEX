@@ -1,4 +1,4 @@
-"""Ollama wrapper: verify tags, generate, retry."""
+"""Ollama wrapper: verify tags, generate, retry — tuned for laptop latency."""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ class Engine:
         self.config = config or load_config()
         self.client = client or ollama.Client()
         self._loaded: set[str] = set()
+        self.perf = self.config.get("performance", {})
         self.available = self._list_models()
         self.fast_model = self._resolve(
             self.config["models"]["fast"],
@@ -40,6 +41,7 @@ class Engine:
             self.config["models"]["deep"],
             self.config["models"].get("fallback_deep"),
         )
+        self.keep_alive = self.perf.get("keep_alive", "30m")
 
     def _list_models(self) -> list[str]:
         """Current ollama python client: .list().models, m.model (NOT ['name'])."""
@@ -49,16 +51,13 @@ class Engine:
     def _prefix_match(self, wanted: str) -> Optional[str]:
         if not wanted:
             return None
-        # Exact first, then prefix (tags carry :suffix).
         for name in self.available:
             if name == wanted:
                 return name
         for name in self.available:
             if name.startswith(wanted) or wanted.startswith(name.split(":")[0]):
-                # Prefer prefix match where installed name starts with wanted prefix
                 if name.startswith(wanted.split(":")[0]) or name.startswith(wanted):
                     return name
-        # Broader: wanted is a prefix of installed, or installed starts with wanted
         for name in self.available:
             base_wanted = wanted.split(":")[0]
             base_name = name.split(":")[0]
@@ -80,20 +79,54 @@ class Engine:
             + f". Available: {self.available}"
         )
 
-    def ensure_loaded(self, model: str) -> None:
-        """Load model on demand (no-op if already warmed)."""
+    def _ctx_for(self, role: str) -> int:
+        if role == "fast":
+            return int(self.perf.get("num_ctx_fast", 4096))
+        return int(self.perf.get("num_ctx_deep", 8192))
+
+    def _predict_for(self, role: str, override: Optional[int] = None) -> int:
+        if override is not None:
+            return override
+        if role == "fast":
+            return int(self.perf.get("num_predict_fast", 160))
+        return int(self.perf.get("num_predict_deep", 700))
+
+    def _options(
+        self,
+        *,
+        role: str,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        num_predict: Optional[int] = None,
+    ) -> dict[str, Any]:
+        # Cap context hard — default Gemma/Ollama 128K KV is what made M1 feel stuck.
+        return {
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "num_ctx": self._ctx_for(role),
+            "num_predict": self._predict_for(role, num_predict),
+        }
+
+    def ensure_loaded(self, model: str, *, role: str = "deep") -> None:
+        """Mark model resident. Optional tiny warmup (off by default — first real call loads it)."""
         if model in self._loaded:
             return
-        # A tiny generate warms the model into memory.
-        try:
-            self.client.chat(
-                model=model,
-                messages=[{"role": "user", "content": "ping"}],
-                options={"num_predict": 1, "temperature": 0.2},
-            )
-        except Exception:
-            # Still mark attempted; subsequent calls will surface real errors.
-            pass
+        if self.perf.get("warmup", False):
+            try:
+                self.client.chat(
+                    model=model,
+                    messages=[{"role": "user", "content": "ok"}],
+                    options={
+                        "num_predict": 1,
+                        "temperature": 0.2,
+                        "num_ctx": self._ctx_for(role),
+                    },
+                    keep_alive=self.keep_alive,
+                )
+            except Exception:
+                pass
         self._loaded.add(model)
 
     def generate(
@@ -107,11 +140,12 @@ class Engine:
         top_k: int = 64,
         role: str = "deep",
         max_retries: int = 2,
+        num_predict: Optional[int] = None,
     ) -> str:
         """Chat generate with bounded transient retries. Returns assistant text."""
         if model is None:
             model = self.fast_model if role == "fast" else self.deep_model
-        self.ensure_loaded(model)
+        self.ensure_loaded(model, role=role)
 
         messages: list[dict[str, str]] = []
         if system:
@@ -124,11 +158,14 @@ class Engine:
                 resp = self.client.chat(
                     model=model,
                     messages=messages,
-                    options={
-                        "temperature": temperature,
-                        "top_p": top_p,
-                        "top_k": top_k,
-                    },
+                    options=self._options(
+                        role=role,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                        num_predict=num_predict,
+                    ),
+                    keep_alive=self.keep_alive,
                 )
                 content = resp.message.content if resp.message else None
                 if content is None:
@@ -137,7 +174,42 @@ class Engine:
             except Exception as e:
                 last_err = e
                 if attempt < max_retries:
-                    time.sleep(0.5 * (attempt + 1))
+                    time.sleep(0.35 * (attempt + 1))
                     continue
                 raise RuntimeError(f"ollama generate failed after retries: {e}") from e
         raise RuntimeError(f"ollama generate failed: {last_err}")
+
+    def chat(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: Optional[str] = None,
+        tools: Optional[list[Any]] = None,
+        temperature: float = 0.2,
+        top_p: float = 0.95,
+        top_k: int = 64,
+        role: str = "deep",
+        format: Optional[Any] = None,
+        num_predict: Optional[int] = None,
+    ) -> Any:
+        """Native chat (supports Gemma 4 tool calling). Returns ChatResponse."""
+        if model is None:
+            model = self.fast_model if role == "fast" else self.deep_model
+        self.ensure_loaded(model, role=role)
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "options": self._options(
+                role=role,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                num_predict=num_predict,
+            ),
+            "keep_alive": self.keep_alive,
+        }
+        if tools is not None:
+            kwargs["tools"] = tools
+        if format is not None:
+            kwargs["format"] = format
+        return self.client.chat(**kwargs)

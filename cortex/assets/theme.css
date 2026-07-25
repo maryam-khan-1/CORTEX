@@ -1,0 +1,341 @@
+/* CORTEX SOC dashboard — signal-desk visual system
+   Direction: cool coastal steel + amber alerts (not purple / not neon glow) */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@600;700;800&display=swap");
+
+:root {
+  --ink: #14212b;
+  --muted: #5a6b78;
+  --paper: #f3f6f4;
+  --mist: #d7e4df;
+  --teal: #0f6d6a;
+  --teal-deep: #0a4543;
+  --amber: #c45c26;
+  --crimson: #b42318;
+  --ok: #2f6b4f;
+  --line: rgba(20, 33, 43, 0.12);
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-strong: rgba(255, 255, 255, 0.9);
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --display: "Syne", "IBM Plex Sans", sans-serif;
+  --radius: 14px;
+}
+
+/* Atmosphere */
+.gradio-container,
+.main,
+body {
+  font-family: var(--sans) !important;
+  color: var(--ink) !important;
+  background:
+    radial-gradient(1200px 600px at 12% -10%, #b9d8d3 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #f0dcc8 0%, transparent 50%),
+    linear-gradient(165deg, #eef3f1 0%, var(--paper) 45%, #e7eef2 100%) !important;
+  background-attachment: fixed !important;
+}
+
+.gradio-container {
+  max-width: 1280px !important;
+}
+
+/* Brand */
+.cortex-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.4rem 1.6rem 1.2rem;
+  border-radius: calc(var(--radius) + 4px);
+  background:
+    linear-gradient(120deg, rgba(15, 109, 106, 0.12), transparent 42%),
+    linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.35));
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  animation: heroIn 700ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.cortex-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.35;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, #000 20%, transparent 95%);
+}
+
+.cortex-brand {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 5vw, 3.4rem);
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: var(--teal-deep);
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.cortex-tagline {
+  position: relative;
+  z-index: 1;
+  margin: 0.55rem 0 0;
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+
+.cortex-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+  position: relative;
+  z-index: 1;
+}
+
+.cortex-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--crimson);
+  animation: pulseDot 1.4s ease-in-out infinite;
+}
+
+/* Stat strip */
+.cortex-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.85rem 0 0.25rem;
+}
+
+.cortex-stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  backdrop-filter: blur(8px);
+  transition: transform 220ms ease, border-color 220ms ease;
+  animation: riseIn 560ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.cortex-stat:hover {
+  transform: translateY(-2px);
+  border-color: rgba(15, 109, 106, 0.35);
+}
+
+.cortex-stat .k {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.cortex-stat .v {
+  font-family: var(--display);
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 0.15rem;
+}
+
+.cortex-stat.critical .v { color: var(--crimson); }
+.cortex-stat.suspicious .v { color: var(--amber); }
+.cortex-stat.benign .v { color: var(--ok); }
+.cortex-stat.total .v { color: var(--teal-deep); }
+
+/* Live feed */
+.cortex-feed {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 360px;
+  position: relative;
+}
+
+.cortex-feed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: rgba(15, 109, 106, 0.06);
+}
+
+.cortex-feed-body {
+  max-height: 420px;
+  overflow: auto;
+  padding: 0.35rem 0;
+}
+
+.cortex-row {
+  display: grid;
+  grid-template-columns: 72px 70px 96px 1fr;
+  gap: 0.55rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid rgba(20, 33, 43, 0.06);
+  font-size: 0.86rem;
+  animation: slideIn 380ms cubic-bezier(.2,.8,.2,1);
+  position: relative;
+}
+
+.cortex-row:hover {
+  background: rgba(15, 109, 106, 0.06);
+}
+
+.cortex-row .ts {
+  font-family: var(--mono);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.cortex-row .src {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--teal-deep);
+}
+
+.cortex-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.4rem;
+  border-radius: 4px;
+  width: fit-content;
+  border: 1px solid transparent;
+}
+
+.cortex-badge.critical {
+  color: #7f1d1d;
+  background: rgba(180, 35, 24, 0.12);
+  border-color: rgba(180, 35, 24, 0.25);
+  animation: criticalFlash 2.2s ease-in-out infinite;
+}
+
+.cortex-badge.suspicious {
+  color: #7a3410;
+  background: rgba(196, 92, 38, 0.14);
+  border-color: rgba(196, 92, 38, 0.28);
+}
+
+.cortex-badge.benign {
+  color: #1f4d38;
+  background: rgba(47, 107, 79, 0.12);
+  border-color: rgba(47, 107, 79, 0.22);
+}
+
+.cortex-msg {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* Hover detail menu */
+.cortex-tip {
+  display: none;
+  position: absolute;
+  right: 12px;
+  top: 100%;
+  z-index: 20;
+  width: min(360px, 70vw);
+  padding: 0.75rem 0.85rem;
+  background: #122029;
+  color: #e8eef1;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(20, 33, 43, 0.22);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.cortex-row:hover .cortex-tip {
+  display: block;
+  animation: tipIn 180ms ease both;
+}
+
+.cortex-tip strong {
+  color: #9ed0cb;
+  font-weight: 600;
+}
+
+/* Panels / buttons */
+.gr-group, .gr-box, .block {
+  border-radius: var(--radius) !important;
+}
+
+button.primary, .primary {
+  background: linear-gradient(135deg, var(--teal), var(--teal-deep)) !important;
+  border: none !important;
+  color: #fff !important;
+  font-family: var(--sans) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  transition: transform 180ms ease, filter 180ms ease !important;
+}
+
+button.primary:hover, .primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+/* Soften default table look */
+table {
+  font-family: var(--mono) !important;
+  font-size: 0.78rem !important;
+}
+
+footer { display: none !important; }
+
+@keyframes heroIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); background: rgba(15,109,106,0.12); }
+  to { opacity: 1; transform: none; background: transparent; }
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.55; }
+}
+
+@keyframes criticalFlash {
+  0%, 100% { background: rgba(180, 35, 24, 0.12); }
+  50% { background: rgba(180, 35, 24, 0.22); }
+}
+
+@keyframes tipIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 900px) {
+  .cortex-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cortex-row { grid-template-columns: 64px 64px 1fr; }
+  .cortex-row .src { display: none; }
+}

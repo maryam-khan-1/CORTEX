@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from core.offline import enable_hf_offline, resolve_embedding_model
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PERSIST = ROOT / "data" / "chroma"
 META_PATH = DEFAULT_PERSIST / "structured_lookup.json"
@@ -39,10 +41,12 @@ class RAG:
 
         self.persist_dir = Path(persist_dir or DEFAULT_PERSIST)
         self.collection_name = collection
-        self.embedding_model = embedding_model
+        self.embedding_model = resolve_embedding_model(embedding_model)
         self.meta = self._load_meta()
+        enable_hf_offline()
         ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=self.embedding_model
+            model_name=self.embedding_model,
+            local_files_only=True,
         )
         self._client = chromadb.PersistentClient(path=str(self.persist_dir))
         self._col = self._client.get_collection(

@@ -210,7 +210,14 @@ def persist_chroma(docs: list[dict]) -> None:
     from chromadb.utils import embedding_functions
 
     PERSIST_DIR.mkdir(parents=True, exist_ok=True)
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
+    from core.offline import enable_hf_offline, resolve_embedding_model
+
+    model_name = resolve_embedding_model(EMBED_MODEL)
+    enable_hf_offline()
+    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name=model_name,
+        local_files_only=True,
+    )
     client = chromadb.PersistentClient(path=str(PERSIST_DIR))
     try:
         client.delete_collection(COLLECTION)

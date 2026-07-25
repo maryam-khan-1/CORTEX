@@ -1,3 +1,4 @@
+plotly>=5.0
 pydantic>=2.0
 ollama>=0.4
 chromadb>=0.5

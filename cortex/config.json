@@ -26,13 +26,34 @@
   "harness": {
     "max_retries": 2
   },
+  "performance": {
+    "num_ctx_fast": 4096,
+    "num_ctx_deep": 8192,
+    "num_predict_fast": 120,
+    "num_predict_deep": 640,
+    "keep_alive": "60m",
+    "warmup": false
+  },
   "rag": {
     "collection": "cortex_cve",
     "persist_dir": "data/chroma",
-    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-    "top_k": 5
+    "embedding_model": "data/models/all-MiniLM-L6-v2",
+    "top_k": 3,
+    "offline": true
   },
   "triage": {
     "consensus_n": 3
+  },
+  "agent": {
+    "max_steps": 8,
+    "default_target": "data/vulnerable_code.py",
+    "default_goal": "Autonomous defend: audit data/vulnerable_code.py. Call get_code_context once. Report CWE findings from the code (SQL injection, command injection, unsafe pickle, etc.) — code findings do not need CVE ids or grounded_on. Only search_cve/lookup_kev if citing a specific CVE you retrieved. Then return ONLY Report JSON. Keep explanations short."
+  },
+  "demo": {
+    "log_limit": 3,
+    "consensus_n": 1,
+    "cve_query": "CVE-2025-24813 Apache Tomcat",
+    "fake_cve_query": "CVE-2099-00001 toaster firmware quantum kyber",
+    "agent_goal": "Autonomous defend: audit data/vulnerable_code.py. Call get_code_context once. Report CWE findings from the code without inventing CVEs. Return ONLY Report JSON. Keep explanations short."
   }
 }

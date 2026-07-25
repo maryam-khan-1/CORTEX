@@ -13,6 +13,11 @@ __pycache__/
 data/chroma/**
 !data/chroma/.gitkeep
 
+# Vendored embedding weights (~90MB) — keep local; do not push
+# One-time: python scripts/vendor_embeddings.py
+data/models/**
+!data/models/.gitkeep
+
 # Heavy / generated artifacts
 *.bin
 *.sqlite3
