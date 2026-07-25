@@ -68,6 +68,11 @@
     "default_target": "data/vulnerable_code.py",
     "default_goal": "Autonomous defend: audit data/vulnerable_code.py. Call get_code_context once. Report CWE findings from the code (SQL injection, command injection, unsafe pickle, etc.) — code findings do not need CVE ids or grounded_on. Only search_cve/lookup_kev if citing a specific CVE you retrieved. Then return ONLY Report JSON. Keep explanations short."
   },
+  "vision": {
+    "num_predict": 1100,
+    "max_edge": 896,
+    "max_advisories": 6
+  },
   "autonomy": {
     "interval_s": 2.0,
     "consensus_n": 2,

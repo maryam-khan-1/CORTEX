@@ -26,11 +26,13 @@ from core.rag import RAG
 from core.schema import Finding, Report, Verdict
 from core.telemetry import TELEMETRY
 from core.triage import Triage
+from core.vision import VisionAnalyzer, VisionResult
 
 ROOT = Path(__file__).resolve().parent
 PROMPTS = ROOT / "prompts"
 SAMPLE_LOGS = ROOT / "data" / "sample_logs.csv"
 VULN_CODE = ROOT / "data" / "vulnerable_code.py"
+DEMO_DIAGRAM = ROOT / "data" / "demo_diagram.png"
 THEME_CSS = (ROOT / "assets" / "theme.css").read_text()
 
 
@@ -84,6 +86,7 @@ class AppState:
             self.rag = None
         self.triage = Triage(self.engine, self.harness, self.rag, self.config)
         self.agent = Agent(self.engine, self.rag, code_root=ROOT, config=self.config)
+        self.vision = VisionAnalyzer(self.engine, self.rag, config=self.config)
         self.feed: LiveFeedState = FEED
         self.autonomy = AutonomyLoop(
             self.triage, self.agent, self.feed, config=self.config, telemetry=TELEMETRY
@@ -577,6 +580,117 @@ def run_autonomous_defend(target: str = "") -> tuple[str, str]:
     return header + md, trace
 
 
+SEVERITY_CLASS = {
+    "Critical": "critical",
+    "High": "critical",
+    "Medium": "suspicious",
+    "Low": "benign",
+}
+
+
+def render_diagram_result(result: VisionResult) -> str:
+    report = result.report
+    head = (
+        '<div class="cortex-vision-head">'
+        f'<span class="cortex-pill live"><span class="cortex-live-dot"></span>'
+        f"vision · {html.escape(result.model or 'no model')}</span>"
+        f'<span class="cortex-pill">{result.ms/1000:.1f}s</span>'
+        f'<span class="cortex-pill">risk {report.overall_risk}/100</span>'
+        f'<span class="cortex-pill">{len(report.findings)} finding(s)</span>'
+        "</div>"
+    )
+
+    if not report.findings:
+        return (
+            head
+            + '<div class="cortex-empty">'
+            + html.escape(report.notes or "No architectural weaknesses returned.")
+            + "</div>"
+        )
+
+    cards = []
+    for f in report.findings:
+        cls = SEVERITY_CLASS.get(f.severity, "suspicious")
+        chips = [
+            f'<span class="cortex-chip mitre">{html.escape(f.mitre_technique)} · {html.escape(f.mitre_tactic)}</span>',
+            f'<span class="cortex-chip nist">NIST {html.escape(f.nist_control)}</span>',
+            f'<span class="cortex-chip">{html.escape(f.exposure)}</span>',
+        ]
+        if f.cve_id:
+            chips.append(f'<span class="cortex-chip cve">{html.escape(f.cve_id)}</span>')
+        for doc in f.grounded_on[:2]:
+            chips.append(f'<span class="cortex-chip cite">{html.escape(doc)}</span>')
+
+        detail = []
+        if f.nist_rationale:
+            detail.append(
+                f'<div class="cortex-card-line"><b>Control gap</b> {html.escape(f.nist_rationale)}</div>'
+            )
+        if f.attack_path:
+            detail.append(
+                f'<div class="cortex-card-line"><b>Attack path</b> {html.escape(f.attack_path)}</div>'
+            )
+        if f.fix:
+            detail.append(
+                f'<div class="cortex-card-line"><b>Fix</b> {html.escape(f.fix)}</div>'
+            )
+
+        cards.append(
+            f"""
+        <div class="cortex-card {cls} cortex-pop">
+          <div class="cortex-card-head">
+            <span class="cortex-badge {cls}">{html.escape(f.severity)}</span>
+            <span class="cortex-card-title">{html.escape(f.component)}</span>
+          </div>
+          <div class="cortex-card-line">{html.escape(f.explanation)}</div>
+          {''.join(detail)}
+          <div class="cortex-chips">{''.join(chips)}</div>
+        </div>
+        """
+        )
+
+    blocks = [head, '<div class="cortex-incidents">' + "".join(cards) + "</div>"]
+
+    if result.advisories:
+        rows = "".join(
+            f'<div class="cortex-adv-row">'
+            f'<span class="cortex-chip cve">{html.escape(a.cve_id or "advisory")}</span>'
+            f'<span class="cortex-chip cite">{html.escape(a.doc_id)}</span>'
+            f'<span class="cortex-adv-comp">{html.escape(a.component)}</span>'
+            f'<span class="cortex-adv-text">{html.escape(a.text[:180])}</span>'
+            f"</div>"
+            for a in result.advisories
+        )
+        blocks.append(
+            '<div class="cortex-advisories"><div class="cortex-activity-head">'
+            "Advisories matched from the local post-cutoff index (not model recall)"
+            f"</div>{rows}</div>"
+        )
+
+    if result.stripped_cves:
+        blocks.append(
+            '<div class="cortex-strip-note">Stripped '
+            + ", ".join(f"<code>{html.escape(c)}</code>" for c in result.stripped_cves)
+            + " — named without retrieved evidence.</div>"
+        )
+
+    if report.notes:
+        blocks.append(
+            f'<div class="cortex-card-line" style="margin-top:.6rem"><b>Notes</b> {html.escape(report.notes)}</div>'
+        )
+
+    return "".join(blocks)
+
+
+def run_diagram_analysis(image_path) -> str:
+    """Multimodal architecture review — model reads topology, index supplies CVEs."""
+    st = get_state()
+    path = image_path if isinstance(image_path, str) else getattr(image_path, "name", None)
+    if not path:
+        return '<div class="cortex-empty">Upload an infrastructure diagram to analyze.</div>'
+    return render_diagram_result(st.vision.analyze(path))
+
+
 def run_full_demo() -> tuple[str, list[list[Any]], str, str, str, str, str]:
     st = get_state()
     demo_cfg = st.config.get("demo", {})
@@ -741,6 +855,37 @@ def build_ui() -> gr.Blocks:
                 )
                 log_report = gr.Markdown()
 
+            # ---------- Multimodal diagram review ----------
+            with gr.Tab("Diagram review"):
+                gr.Markdown(
+                    "**Multimodal architecture review.** Upload an infrastructure diagram. "
+                    "Gemma 4 vision reads the topology it can actually see and maps each "
+                    "weakness to a **MITRE ATT&CK** technique and a **NIST SP 800-53** "
+                    "control. CVEs are attached separately by local index lookup on the "
+                    "components it named — never recalled from training, and stripped if "
+                    "unsupported. NIST mappings are advisory control references, not a "
+                    "compliance score."
+                )
+                with gr.Row():
+                    diagram_img = gr.Image(
+                        label="Infrastructure diagram", type="filepath", height=320
+                    )
+                    with gr.Column():
+                        diagram_btn = gr.Button("Review architecture", variant="primary")
+                        gr.Markdown(
+                            "_Vision runs on a stock `gemma4` tag (the SecOps fine-tune has "
+                            "no image input). A new diagram takes a couple of minutes on the "
+                            "12B vision model; results are content-addressed, so a diagram "
+                            "you have reviewed before returns instantly._"
+                        )
+                        if DEMO_DIAGRAM.is_file():
+                            gr.Examples(
+                                examples=[[str(DEMO_DIAGRAM)]],
+                                inputs=[diagram_img],
+                                label="Sample as-built network",
+                            )
+                diagram_out = gr.HTML()
+
             # ---------- Code analyzer ----------
             with gr.Tab("Code analyzer"):
                 code_file = gr.File(
@@ -822,6 +967,7 @@ def build_ui() -> gr.Blocks:
             outputs=[demo_walk, demo_table, demo_deep, demo_cve, demo_abstain, demo_agent, demo_trace],
         )
         log_btn.click(run_log_triage, inputs=[logs], outputs=[log_table, log_report])
+        diagram_btn.click(run_diagram_analysis, inputs=[diagram_img], outputs=[diagram_out])
         code_btn.click(run_code_audit, inputs=[code_file, code_box], outputs=[code_out])
         cve_btn.click(run_cve_query, inputs=[cve_q], outputs=[cve_out])
         defend_btn.click(

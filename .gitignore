@@ -36,6 +36,10 @@ data/chroma/**
 !data/chroma/.gitkeep
 
 # Model / embedding caches if ever downloaded into the repo
+cortex/data/models/**
+!cortex/data/models/.gitkeep
+data/models/**
+!data/models/.gitkeep
 *.bin
 *.sqlite3
 *.pt

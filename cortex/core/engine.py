@@ -13,6 +13,7 @@ Latency levers used here (all offline):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -32,6 +33,19 @@ def load_config(path: Optional[Path] = None) -> dict[str, Any]:
     cfg_path = path or DEFAULT_CONFIG
     with open(cfg_path) as f:
         return json.load(f)
+
+
+def _image_fingerprint(path: str) -> str:
+    """Identify an image by content, not path.
+
+    Gradio copies uploads into a fresh temp dir every time, so a path- or mtime-based
+    key would miss on the very case that matters: the operator re-uploading the same
+    diagram during a demo.
+    """
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:32]
+    except Exception:
+        return str(path)
 
 
 class Engine:
@@ -232,8 +246,13 @@ class Engine:
         format: Optional[Any] = None,
         label: str = "generate",
         use_cache: bool = True,
+        images: Optional[list[str]] = None,
     ) -> str:
-        """Chat generate with bounded transient retries. Returns assistant text."""
+        """Chat generate with bounded transient retries. Returns assistant text.
+
+        `images` requires a vision-capable tag: stock gemma4 builds have native image
+        input, the SecOps GGUF fine-tune does not.
+        """
         if model is None:
             model = self.model_for(role)
         options = self._options(
@@ -255,6 +274,7 @@ class Engine:
                 prompt=prompt,
                 options=options,
                 format=format,
+                images=[_image_fingerprint(p) for p in (images or [])],
             )
             hit = self.cache.get(key)
             if hit is not None:
@@ -264,10 +284,13 @@ class Engine:
                 return hit
 
         self.ensure_loaded(model, role=role)
-        messages: list[dict[str, str]] = []
+        messages: list[dict[str, Any]] = []
         if system:
             messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        user_msg: dict[str, Any] = {"role": "user", "content": prompt}
+        if images:
+            user_msg["images"] = list(images)
+        messages.append(user_msg)
 
         last_err: Optional[Exception] = None
         for attempt in range(max_retries + 1):

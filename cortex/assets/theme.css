@@ -5,43 +5,87 @@
    unplugged, so everything below uses the OS font stack. */
 
 :root {
-  --ink: #14212b;
-  --muted: #5a6b78;
-  --faint: #8798a4;
-  --paper: #f3f6f4;
+  --ink: #0b1622;
+  --muted: #4d6070;
+  --faint: #7b8f9d;
+  --paper: #eef4f3;
   --mist: #d7e4df;
-  --teal: #0f6d6a;
-  --teal-deep: #0a4543;
-  --amber: #c45c26;
-  --crimson: #b42318;
-  --violet: #4c4b8a;
-  --ok: #2f6b4f;
-  --line: rgba(20, 33, 43, 0.12);
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-strong: rgba(255, 255, 255, 0.9);
+  --teal: #00a3a1;
+  --teal-deep: #04645f;
+  --electric: #00d1c1;
+  --amber: #ff7a18;
+  --crimson: #e8102f;
+  --magenta: #d81b8c;
+  --violet: #6c3cf5;
+  --ok: #12a561;
+  --line: rgba(11, 22, 34, 0.13);
+  --panel: rgba(255, 255, 255, 0.76);
+  --panel-strong: rgba(255, 255, 255, 0.93);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --display: var(--sans);
-  --radius: 14px;
-  --shadow: 0 10px 30px rgba(20, 33, 43, 0.08);
+  --radius: 16px;
+  --shadow: 0 14px 38px rgba(11, 22, 34, 0.13);
+  --glow-crit: 0 0 0 1px rgba(232, 16, 47, 0.35), 0 8px 26px rgba(232, 16, 47, 0.28);
 }
 
-/* Atmosphere */
+/* Atmosphere — animated aurora so the console feels live even while idle */
 .gradio-container,
 .main,
 body {
   font-family: var(--sans) !important;
   color: var(--ink) !important;
   background:
-    radial-gradient(1200px 600px at 12% -10%, #b9d8d3 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #f0dcc8 0%, transparent 50%),
-    linear-gradient(165deg, #eef3f1 0%, var(--paper) 45%, #e7eef2 100%) !important;
+    radial-gradient(1100px 620px at 8% -12%, rgba(0, 209, 193, 0.45) 0%, transparent 58%),
+    radial-gradient(900px 560px at 98% -6%, rgba(108, 60, 245, 0.32) 0%, transparent 55%),
+    radial-gradient(800px 520px at 50% 108%, rgba(255, 122, 24, 0.26) 0%, transparent 60%),
+    linear-gradient(165deg, #e8f4f2 0%, var(--paper) 45%, #e4edf5 100%) !important;
   background-attachment: fixed !important;
+  background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100% !important;
+  animation: auroraDrift 26s ease-in-out infinite alternate;
 }
 
+/* Center the whole console — Gradio's own max-width doesn't self-center once
+   a custom max-width is applied, which left everything hugging the right. */
 .gradio-container {
   max-width: 1320px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
+
+/* Gradio 6 nests app > main > contain; any one of these left un-centred makes the
+   whole console drift right. `.wrap` is deliberately excluded — it is reused by the
+   file-upload overlay. */
+.gradio-container > .main,
+.gradio-container > .main > .contain,
+.gradio-container .app,
+gradio-app {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+  max-width: 1320px !important;
+  float: none !important;
+}
+
+body > gradio-app,
+gradio-app > .gradio-container {
+  display: block !important;
+}
+
+/* Content blocks read as a centred column instead of drifting right */
+.cortex-hero-top,
+.cortex-pills,
+.cortex-stats,
+.cortex-loop {
+  justify-content: center !important;
+  text-align: center;
+}
+
+.cortex-hero-top { align-items: center !important; }
+.cortex-brand, .cortex-tagline { text-align: center; }
+.cortex-tagline { margin-left: auto; margin-right: auto; }
+
+.cortex-incidents { align-items: stretch; }
 
 /* ---------- Brand ---------- */
 .cortex-hero {
@@ -50,11 +94,32 @@ body {
   padding: 1.35rem 1.6rem 1.15rem;
   border-radius: calc(var(--radius) + 4px);
   background:
-    linear-gradient(120deg, rgba(15, 109, 106, 0.12), transparent 42%),
-    linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.35));
-  border: 1px solid var(--line);
+    linear-gradient(120deg, rgba(0, 209, 193, 0.22), transparent 46%),
+    linear-gradient(300deg, rgba(108, 60, 245, 0.16), transparent 44%),
+    linear-gradient(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.38));
+  border: 1px solid rgba(0, 163, 161, 0.28);
+  box-shadow: 0 18px 44px rgba(4, 100, 95, 0.16);
   backdrop-filter: blur(10px);
   animation: heroIn 700ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+/* Radar sweep — a slow beam across the hero, reads as "console is watching" */
+.cortex-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 209, 193, 0.16) 45%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent
+  );
+  pointer-events: none;
+  z-index: 0;
+  animation: heroSweep 7s ease-in-out infinite;
 }
 
 .cortex-hero::after {
@@ -86,8 +151,21 @@ body {
   font-size: clamp(2.1rem, 4.4vw, 2.9rem);
   letter-spacing: -0.04em;
   line-height: 0.95;
-  color: var(--teal-deep);
   margin: 0;
+  background: linear-gradient(
+    100deg,
+    var(--teal-deep) 0%,
+    var(--electric) 28%,
+    var(--violet) 58%,
+    var(--magenta) 82%,
+    var(--teal-deep) 100%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--teal-deep);
+  animation: brandFlow 9s linear infinite;
 }
 
 .cortex-tagline {
@@ -518,6 +596,99 @@ body {
   background: rgba(255, 255, 255, 0.4);
 }
 
+/* ---------- Multimodal diagram review ---------- */
+.cortex-vision-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+}
+
+.cortex-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.cortex-chip.mitre {
+  background: linear-gradient(135deg, rgba(232, 16, 47, 0.14), rgba(216, 27, 140, 0.14));
+  color: #8c0b20;
+  border-color: rgba(232, 16, 47, 0.28);
+  font-weight: 700;
+}
+
+.cortex-chip.nist {
+  background: linear-gradient(135deg, rgba(108, 60, 245, 0.14), rgba(0, 163, 161, 0.14));
+  color: #3a2a9c;
+  border-color: rgba(108, 60, 245, 0.28);
+  font-weight: 700;
+}
+
+.cortex-chip.cve {
+  background: linear-gradient(135deg, rgba(255, 122, 24, 0.18), rgba(232, 16, 47, 0.14));
+  color: #8a3a05;
+  border-color: rgba(255, 122, 24, 0.34);
+  font-weight: 700;
+}
+
+.cortex-advisories {
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.cortex-adv-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid rgba(11, 22, 34, 0.06);
+  font-size: 0.78rem;
+  animation: slideIn 320ms ease both;
+}
+
+.cortex-adv-row:last-child { border-bottom: none; }
+.cortex-adv-row:hover { background: rgba(0, 163, 161, 0.07); }
+
+.cortex-adv-comp {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+
+.cortex-adv-text { color: var(--muted); flex: 1 1 22rem; line-height: 1.4; }
+
+.cortex-strip-note {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(255, 122, 24, 0.42);
+  background: rgba(255, 122, 24, 0.09);
+  color: #8a3a05;
+  font-size: 0.79rem;
+}
+
+.cortex-strip-note code { font-family: var(--mono); font-size: 0.74rem; }
+
+.cortex-pop { animation: popIn 420ms cubic-bezier(.2, .9, .25, 1.15) both; }
+.cortex-incidents .cortex-pop:nth-child(2) { animation-delay: 70ms; }
+.cortex-incidents .cortex-pop:nth-child(3) { animation-delay: 140ms; }
+.cortex-incidents .cortex-pop:nth-child(4) { animation-delay: 210ms; }
+.cortex-incidents .cortex-pop:nth-child(5) { animation-delay: 280ms; }
+
+.cortex-card.critical { box-shadow: var(--glow-crit); }
+
+.cortex-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(11, 22, 34, 0.16);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
 /* ---------- Gradio surfaces ---------- */
 .gr-group, .gr-box, .block { border-radius: var(--radius) !important; }
 
@@ -597,6 +768,28 @@ footer { display: none !important; }
 
 @keyframes tipIn {
   from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes auroraDrift {
+  from { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
+  to { background-position: 60% 30%, 40% 20%, 30% 70%, 0 0; }
+}
+
+@keyframes heroSweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(320%); opacity: 0; }
+}
+
+@keyframes brandFlow {
+  from { background-position: 0% 50%; }
+  to { background-position: 260% 50%; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
 
