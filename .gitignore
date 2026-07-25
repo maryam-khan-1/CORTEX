@@ -1,0 +1,50 @@
+# Local build notes (not part of the shipped app)
+CORTEX_cursor_build_spec.md
+
+# Virtualenv / local Python (can be 1GB+)
+.venv/
+venv/
+env/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Chroma vector index (rebuild: python scripts/build_index.py)
+# Keep the directory via data/chroma/.gitkeep; do not commit sqlite/bin shards.
+cortex/data/chroma/**
+!cortex/data/chroma/.gitkeep
+data/chroma/**
+!data/chroma/.gitkeep
+
+# Model / embedding caches if ever downloaded into the repo
+*.bin
+*.sqlite3
+*.pt
+*.pth
+*.onnx
+*.safetensors
+!cortex/data/chroma/.gitkeep
+
+# Gradio / runtime leftovers
+flagged/
+gradio_cached_examples/
+*.log

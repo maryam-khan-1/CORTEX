@@ -1,0 +1,11 @@
+timestamp,lang,source,message
+2026-03-01T10:01:00Z,en,auth,Failed login for user admin from 203.0.113.50 — 12 attempts in 30s
+2026-03-01T10:02:11Z,en,fw,ALLOW tcp 22 from 198.51.100.9 to bastion-01
+2026-03-01T10:03:22Z,zh,ids,检测到 PowerShell 下载 cradle: IEX (New-Object Net.WebClient).DownloadString
+2026-03-01T10:04:05Z,es,web,Error 500 en /api/users?id=1' OR '1'='1 — posible inyección SQL
+2026-03-01T10:05:40Z,en,dns,Query for update.microsoft.com from workstation-22 NXDOMAIN then success
+2026-03-01T10:06:18Z,en,edr,Process created: mimikatz.exe parent=winword.exe — credential dumping suspected
+2026-03-01T10:07:55Z,zh,proxy,正常浏览 https://example.com/docs/readme
+2026-03-01T10:08:33Z,es,vpn,Usuario maria conectada desde oficina — handshake OK
+2026-03-01T10:09:12Z,en,k8s,Unauthorized access to secrets API from pod crypto-miner-7f9b
+2026-03-01T10:10:01Z,en,app,INFO healthcheck ok latency=12ms

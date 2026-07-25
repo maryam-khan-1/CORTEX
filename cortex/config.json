@@ -1,0 +1,38 @@
+{
+  "models": {
+    "fast": "hf.co/entrick/Security-SLM-Gemma-4-E2B-it-GGUF:Q4_K_M",
+    "deep": "luisppb16/gemma4-e4b-SecOps:latest",
+    "fallback_fast": "gemma4:e2b",
+    "fallback_deep": "gemma4:e4b",
+    "multimodal": "gemma4:12b"
+  },
+  "sampling": {
+    "extraction": {
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "top_k": 64
+    },
+    "consensus": {
+      "temperature": 0.3,
+      "top_p": 0.95,
+      "top_k": 64
+    },
+    "default": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 64
+    }
+  },
+  "harness": {
+    "max_retries": 2
+  },
+  "rag": {
+    "collection": "cortex_cve",
+    "persist_dir": "data/chroma",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "top_k": 5
+  },
+  "triage": {
+    "consensus_n": 3
+  }
+}
