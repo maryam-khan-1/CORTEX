@@ -136,13 +136,24 @@ def abstain_report(reason: str) -> Report:
     )
 
 
+def report_json_schema() -> dict[str, Any]:
+    """JSON schema handed to Ollama `format` for grammar-constrained decoding.
+
+    Constraining the decoder is a latency lever, not just a correctness one: the first
+    response is already schema-valid, so the retry round-trips almost never fire.
+    """
+    return Report.model_json_schema()
+
+
 class Harness:
     """Strict JSON schema loop with retry-on-invalid and grounding."""
 
     def __init__(self, engine: Engine, config: Optional[dict[str, Any]] = None):
         self.engine = engine
         self.config = config or engine.config
-        self.max_retries = int(self.config.get("harness", {}).get("max_retries", 2))
+        harness_cfg = self.config.get("harness", {})
+        self.max_retries = int(harness_cfg.get("max_retries", 2))
+        self.constrain_json = bool(harness_cfg.get("constrain_json", True))
         samp = self.config.get("sampling", {}).get("extraction", {})
         self.temperature = float(samp.get("temperature", 0.2))
         self.top_p = float(samp.get("top_p", 0.95))
@@ -156,12 +167,13 @@ class Harness:
         retrieved_doc_ids: Optional[list[str]] = None,
         role: str = "deep",
         model: Optional[str] = None,
+        label: str = "harness",
     ) -> Report:
         """
-        1. Prompt with schema in system (Gemma 4 supports system role).
+        1. Prompt with schema in system (Gemma 4 supports system role) + grammar-constrained format.
         2. Extract JSON, Report.model_validate.
-        3. On ValidationError: retry up to 2x with error appended.
-        4. After 2 failures: return Report with abstained=True.
+        3. On ValidationError: retry up to max_retries with the error appended.
+        4. After the retries: return Report with abstained=True.
         5. Run grounding rule (§3.2) over every finding.
         """
         allowed = set(retrieved_doc_ids or [])
@@ -178,6 +190,7 @@ class Harness:
 
         prompt = user_prompt
         last_err: Optional[str] = None
+        fmt: Optional[dict[str, Any]] = report_json_schema() if self.constrain_json else None
 
         # max_retries = 2 means: initial + 2 retries = 3 attempts total
         for attempt in range(self.max_retries + 1):
@@ -190,6 +203,8 @@ class Harness:
                     top_k=self.top_k,
                     role=role,
                     model=model,
+                    format=fmt,
+                    label=label,
                 )
                 data = extract_json(raw)
                 report = Report.model_validate(data)
@@ -211,6 +226,10 @@ class Harness:
                 )
             except Exception as e:
                 last_err = str(e)
+                # A backend that rejects the schema grammar shouldn't cost us the analysis.
+                if fmt is not None:
+                    fmt = None
+                    continue
                 return abstain_report(f"Generation failed: {last_err}")
 
         return abstain_report(f"Model failed schema validation after retries: {last_err}")

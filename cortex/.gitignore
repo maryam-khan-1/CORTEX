@@ -18,6 +18,9 @@ data/chroma/**
 data/models/**
 !data/models/.gitkeep
 
+# Inference cache — regenerates itself at run time
+data/cache/
+
 # Heavy / generated artifacts
 *.bin
 *.sqlite3

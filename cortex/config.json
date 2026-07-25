@@ -24,15 +24,22 @@
     }
   },
   "harness": {
-    "max_retries": 2
+    "max_retries": 2,
+    "constrain_json": true
   },
   "performance": {
-    "num_ctx_fast": 4096,
-    "num_ctx_deep": 8192,
-    "num_predict_fast": 120,
-    "num_predict_deep": 640,
+    "num_ctx_fast": 3072,
+    "num_ctx_deep": 6144,
+    "num_predict_fast": 96,
+    "num_predict_deep": 384,
     "keep_alive": "60m",
-    "warmup": false
+    "warmup": false,
+    "prewarm_on_start": true,
+    "think": false
+  },
+  "cache": {
+    "enabled": true,
+    "max_entries": 2000
   },
   "rag": {
     "collection": "cortex_cve",
@@ -42,12 +49,31 @@
     "offline": true
   },
   "triage": {
-    "consensus_n": 3
+    "consensus_n": 3,
+    "early_exit": true,
+    "batch": true,
+    "batch_min": 3,
+    "batch_size": 8,
+    "max_workers": 3,
+    "max_deep": 3
   },
   "agent": {
     "max_steps": 8,
+    "max_revisions": 1,
+    "self_critique": true,
+    "rag_top_k": 4,
+    "num_predict": 384,
+    "num_predict_terse": 256,
+    "alert_max_steps": 3,
     "default_target": "data/vulnerable_code.py",
     "default_goal": "Autonomous defend: audit data/vulnerable_code.py. Call get_code_context once. Report CWE findings from the code (SQL injection, command injection, unsafe pickle, etc.) — code findings do not need CVE ids or grounded_on. Only search_cve/lookup_kev if citing a specific CVE you retrieved. Then return ONLY Report JSON. Keep explanations short."
+  },
+  "autonomy": {
+    "interval_s": 2.0,
+    "consensus_n": 2,
+    "escalate_labels": ["critical", "suspicious", "unknown"],
+    "investigate_labels": ["critical", "unknown"],
+    "max_incidents": 30
   },
   "demo": {
     "log_limit": 3,
